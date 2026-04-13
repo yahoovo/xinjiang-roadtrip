@@ -33,12 +33,23 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-body { background: var(--absolute-black); }
+body {
+  background: var(--absolute-black);
+  /* iOS Safari: 使 100vh 正确对应可视高度 */
+  min-height: -webkit-fill-available;
+}
 
 #root {
   width: 100%;
   height: 100vh;
+  height: 100dvh; /* iOS 17+ / Chrome 108+: 动态视口高度，排除地址栏 */
   overflow: hidden;
+}
+
+/* iOS 触控优化：去掉点击高亮、防止文字选中 */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* Uppercase label utility */

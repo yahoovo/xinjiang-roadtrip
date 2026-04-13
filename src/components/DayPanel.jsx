@@ -6,7 +6,7 @@ import { buildDayNavUrl } from '../lib/amapNav'
 // Ferrari: right panel = Pure White (#FFFFFF) editorial panel
 const CATEGORIES = ['餐饮', '住宿', '门票', '加油', '高速', '购物', '其他']
 
-export default function DayPanel({ day, checklist, onAddExpense, onDeleteExpense, onToggleChecklist }) {
+export default function DayPanel({ day, checklist, onAddExpense, onDeleteExpense, onToggleChecklist, isMobile = false }) {
   const [expenseForm, setExpenseForm] = useState({ category: '餐饮', amount: '', note: '' })
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [checklistOpen, setChecklistOpen] = useState(true)
@@ -61,14 +61,15 @@ export default function DayPanel({ day, checklist, onAddExpense, onDeleteExpense
 
   return (
     <aside style={{
-      width: 272,
+      width: isMobile ? '100%' : 272,
       flexShrink: 0,
       background: '#FFFFFF',
-      borderLeft: '1px solid #D2D2D2',
+      borderLeft: isMobile ? 'none' : '1px solid #D2D2D2',
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
-      overflowY: 'auto',
+      height: isMobile ? 'auto' : '100%',
+      minHeight: isMobile ? '100%' : 'auto',
+      overflowY: isMobile ? 'visible' : 'auto',
       fontFamily: 'var(--ferrari-sans)',
     }}>
       {/* Day header — editorial section title */}

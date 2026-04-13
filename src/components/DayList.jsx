@@ -1,15 +1,15 @@
 import { FileDown, Users } from 'lucide-react'
 
 // Ferrari: left sidebar = Absolute Black (#000000), like the Ferrari nav/hero dark zone
-export default function DayList({ days, selectedDay, onSelectDay, onlineUsers, onExport }) {
+export default function DayList({ days, selectedDay, onSelectDay, onlineUsers, onExport, isMobile = false }) {
   const totalDistance = days.reduce((sum, d) => sum + d.distance, 0)
 
   return (
     <aside style={{
-      width: 232,
+      width: isMobile ? '100%' : 232,
       flexShrink: 0,
       background: '#000000',
-      borderRight: '1px solid #1a1a1a',
+      borderRight: isMobile ? 'none' : '1px solid #1a1a1a',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
@@ -85,9 +85,11 @@ export default function DayList({ days, selectedDay, onSelectDay, onlineUsers, o
                 background: isActive ? '#1a1a1a' : 'transparent',
                 border: 'none',
                 borderLeft: isActive ? `2px solid ${day.color}` : '2px solid transparent',
-                padding: '9px 16px',
+                padding: isMobile ? '13px 20px' : '9px 16px',
                 cursor: 'pointer',
                 transition: 'all 0.1s ease',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
               }}
               onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#111' }}
               onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}

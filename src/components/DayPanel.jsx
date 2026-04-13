@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { POI_TYPES } from '../data/itinerary'
+import { buildDayNavUrl } from '../lib/amapNav'
 
 // Ferrari: right panel = Pure White (#FFFFFF) editorial panel
 const CATEGORIES = ['餐饮', '住宿', '门票', '加油', '高速', '购物', '其他']
@@ -9,6 +10,20 @@ export default function DayPanel({ day, checklist, onAddExpense, onDeleteExpense
   const [expenseForm, setExpenseForm] = useState({ category: '餐饮', amount: '', note: '' })
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [checklistOpen, setChecklistOpen] = useState(true)
+  const [navCopied, setNavCopied] = useState(false)
+
+  function handleNavClick() {
+    const url = buildDayNavUrl(day)
+    if (!url) return
+    if (/Mobi|Android|iPhone/i.test(navigator.userAgent)) {
+      window.open(url, '_blank')
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setNavCopied(true)
+        setTimeout(() => setNavCopied(false), 2000)
+      })
+    }
+  }
 
   const totalExpense = (day.expenses || []).reduce((sum, e) => sum + Number(e.amount), 0)
   const checklistGroups = checklist.reduce((acc, item) => {
@@ -126,6 +141,44 @@ export default function DayPanel({ day, checklist, onAddExpense, onDeleteExpense
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* 高德导航按钮 */}
+      <div style={{ padding: '0 20px 16px', borderBottom: '1px solid #D2D2D2' }}>
+        <button
+          onClick={handleNavClick}
+          style={{
+            width: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            background: navCopied ? '#10b981' : '#000000',
+            color: '#FFFFFF', border: 'none', borderRadius: 2,
+            padding: '10px', cursor: 'pointer',
+            fontFamily: 'var(--ferrari-sans)',
+            fontSize: 12, fontWeight: 500, letterSpacing: '0.8px',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => { if (!navCopied) e.currentTarget.style.background = '#1a1a1a' }}
+          onMouseLeave={e => { if (!navCopied) e.currentTarget.style.background = '#000000' }}
+        >
+          {navCopied ? (
+            '✓ 链接已复制'
+          ) : (
+            <>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                <circle cx="12" cy="9" r="2.5"/>
+              </svg>
+              今日高德导航
+            </>
+          )}
+        </button>
+        <div style={{
+          fontFamily: 'var(--body-font)',
+          fontSize: 9, letterSpacing: '0.5px', color: '#CCCCCC',
+          textAlign: 'center', marginTop: 5, textTransform: 'uppercase',
+        }}>
+          {/Mobi|Android|iPhone/i.test(navigator.userAgent) ? '打开高德地图' : '复制链接 · 粘贴至高德'}
         </div>
       </div>
 

@@ -39,6 +39,7 @@ export default function App() {
       {/* 中间：高德地图 */}
       <MapView
         selectedDay={currentDay}
+        days={days}
         onPoiClick={setActivePoi}
       />
 

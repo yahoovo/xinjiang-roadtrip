@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/* ── Ferrari Design System tokens ── */
+:root {
+  --ferrari-sans: 'Barlow Condensed', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+  --body-font: 'Barlow', 'PingFang SC', Arial, sans-serif;
+
+  /* Brand colors */
+  --ferrari-red:   #DA291C;
+  --dark-red:      #B01E0A;
+  --absolute-black:#000000;
+  --dark-surface:  #303030;
+  --near-black:    #181818;
+  --pure-white:    #FFFFFF;
+
+  /* Neutral scale */
+  --dark-gray:     #666666;
+  --mid-gray:      #8F8F8F;
+  --silver-gray:   #969696;
+  --light-gray:    #D2D2D2;
+  --border-gray:   #CCCCCC;
+
+  /* Interactive */
+  --teal-hover:    #1EAEDB;
+  --link-blue:     #3860BE;
+
+  font-family: var(--ferrari-sans);
+  color: var(--near-black);
+  background: var(--absolute-black);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { background: var(--absolute-black); }
+
+#root {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Uppercase label utility */
+.label-upper {
+  font-family: var(--body-font);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--mid-gray);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; }
+
+/* Amap override */
+.amap-info-content { padding: 0 !important; border-radius: 2px !important; }

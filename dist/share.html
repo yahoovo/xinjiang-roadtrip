@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>北疆14天自驾路书</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; font-family: -apple-system, 'PingFang SC', sans-serif; background: #000; }
+
+    #map { position: fixed; inset: 0; z-index: 0; }
+
+    /* Top bar */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%);
+      padding: 14px 16px 28px;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+    #topbar h1 {
+      color: #fff; font-size: 17px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    #topbar p {
+      color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px;
+    }
+
+    /* Bottom day filter */
+    #daybar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
+      background: linear-gradient(to top, rgba(0,0,0,0.9) 60%, transparent 100%);
+      padding: 24px 0 16px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+    #day-scroll {
+      display: flex; gap: 8px; overflow-x: auto; padding: 0 16px;
+      scrollbar-width: none;
+    }
+    #day-scroll::-webkit-scrollbar { display: none; }
+    .day-pill {
+      flex-shrink: 0; padding: 7px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: 1.5px solid transparent;
+      color: rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.08);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .day-pill.active {
+      color: #fff;
+      border-color: currentColor;
+    }
+    .day-pill:active { transform: scale(0.95); }
+
+    /* Legend */
+    #legend {
+      position: fixed; top: 70px; right: 12px; z-index: 1000;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+      border-radius: 12px; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: rgba(255,255,255,0.75);
+    }
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    /* Popup overrides */
+    .leaflet-popup-content-wrapper {
+      background: #1a1a1a; border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .leaflet-popup-tip { background: #1a1a1a; }
+    .leaflet-popup-content { margin: 0; min-width: 220px; }
+    .popup-inner { padding: 14px 16px; }
+    .popup-type {
+      font-size: 10px; color: rgba(255,255,255,0.4);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
+    }
+    .popup-name {
+      font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;
+    }
+    .popup-time {
+      font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px;
+    }
+    .popup-desc {
+      font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.5;
+    }
+    .popup-photo {
+      margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      font-size: 11px; color: #f59e0b; line-height: 1.4;
+    }
+    .popup-day-badge {
+      display: inline-block; margin-bottom: 6px;
+      padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 700; color: #fff;
+    }
+    .leaflet-container { background: #1a1a2e; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="topbar">
+  <h1>北疆14天自驾路书</h1>
+  <p id="subtitle-text">乌鲁木齐出发 · 全程约4390公里 · 54个地点</p>
+</div>
+
+<div id="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>景点</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>住宿</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>加油</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>餐食</div>
+</div>
+
+<div id="daybar">
+  <div id="day-scroll"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const DAYS = [
+  {id:1,title:"Day 1",route:"乌鲁木齐→福海",color:"#f59e0b",
+   coords:[[43.827,87.617],[45.802,87.654],[47.150,87.100],[47.112,87.489]],
+   pois:[
+    {name:"乌伦古湖西岸观景台",type:"景点",time:"15:00–16:30",lat:47.150,lng:87.100,desc:"北疆最大淡水湖，候鸟天堂，芦苇与落日交融",photo:"面朝正西，下午侧光最美，长焦压缩远山"},
+    {name:"G216沿线加油站",type:"加油",time:"10:00",lat:45.802,lng:87.654,desc:"进入无人区前务必加满油",photo:""},
+    {name:"福海县城酒店",type:"住宿",time:"17:30",lat:47.112,lng:87.489,desc:"明日早出发可可托海",photo:""},
+  ]},
+  {id:2,title:"Day 2",route:"福海→可可托海",color:"#06b6d4",
+   coords:[[47.112,87.489],[47.367,87.833],[47.200,89.100],[47.204,89.456]],
+   pois:[
+    {name:"可可托海三号矿坑",type:"景点",time:"13:00–15:30",lat:47.204,lng:89.456,desc:"世界最大露天矿坑，131种稀有矿产，冷战传奇",photo:"矿坑顶部观景台全景最震撼，下午光线从西照入坑内"},
+    {name:"额尔齐斯河大峡谷",type:"景点",time:"15:30–17:00",lat:47.220,lng:89.460,desc:"流向北冰洋的河流，峡谷地貌壮观",photo:"峡谷栈道拍绿色河流，逆光剪影效果好"},
+    {name:"可可托海镇民宿",type:"住宿",time:"17:30",lat:47.201,lng:89.449,desc:"镇上住宿选择不多，提前预订",photo:""},
+  ]},
+  {id:3,title:"Day 3",route:"可可托海→布尔津",color:"#10b981",
+   coords:[[47.204,89.456],[47.001,89.526],[47.400,88.500],[47.703,86.875]],
+   pois:[
+    {name:"布尔津河大桥",type:"景点",time:"15:00–16:30",lat:47.706,lng:86.880,desc:"清澈额尔齐斯河支流，黄昏光线如油画",photo:"对岸拍桥与落日，或桥上拍河面倒影"},
+    {name:"布尔津夜市烤鱼",type:"餐食",time:"17:00–19:00",lat:47.703,lng:86.875,desc:"全疆最出名的额尔齐斯河烤鱼",photo:"夜市入夜后色彩最浓，尝试慢门记录人流"},
+    {name:"富蕴县加油站",type:"加油",time:"08:15",lat:47.001,lng:89.526,desc:"前往布尔津必加油，中间无大站",photo:""},
+    {name:"布尔津河边客栈",type:"住宿",time:"19:30",lat:47.703,lng:86.876,desc:"靠近夜市，明日禾木路早起",photo:""},
+  ]},
+  {id:4,title:"Day 4",route:"布尔津→禾木村",color:"#8b5cf6",
+   coords:[[47.703,86.875],[48.100,86.900],[48.510,86.820],[48.634,86.769]],
+   pois:[
+    {name:"贾登峪检查站",type:"其他",time:"09:30",lat:48.510,lng:86.820,desc:"证件查验（身份证必备），购买景区门票",photo:""},
+    {name:"禾木村",type:"景点",time:"11:30–17:00",lat:48.634,lng:86.769,desc:"中国最美村庄之一，图瓦族原始木屋聚落，炊烟袅袅",photo:"日出前30分钟上观景山坡，晨雾时分最美"},
+    {name:"禾木河",type:"景点",time:"14:00–15:30",lat:48.628,lng:86.760,desc:"清澈山间小河，两岸白桦倒映水中",photo:"低视角拍水面倒影，秋天金黄色效果极好"},
+    {name:"禾木村木屋民宿",type:"住宿",time:"19:00",lat:48.635,lng:86.770,desc:"住木屋体验图瓦族生活，需提前数月预订",photo:""},
+  ]},
+  {id:5,title:"Day 5",route:"禾木→喀纳斯",color:"#ef4444",
+   coords:[[48.634,86.769],[48.510,86.820],[48.726,87.010],[48.733,87.000]],
+   pois:[
+    {name:"禾木晨雾观景台",type:"景点",time:"06:00–07:30",lat:48.640,lng:86.771,desc:"清晨炊烟与晨雾交织，摄影天堂",photo:"天亮前10分钟到位，携带三脚架"},
+    {name:"观鱼台",type:"景点",time:"10:30–12:00",lat:48.742,lng:87.006,desc:"喀纳斯湖唯一完整俯瞰视角，1500级台阶",photo:"偏振镜减少湖面反光，拍出湖水透明感"},
+    {name:"神仙湾",type:"景点",time:"13:30–15:00",lat:48.720,lng:87.020,desc:"喀纳斯河S形弯道，晨雾中最像仙境",photo:"午后顺光，宽幅构图展现S形河湾"},
+    {name:"月亮湾",type:"景点",time:"15:30–17:00",lat:48.726,lng:87.010,desc:"喀纳斯最知名景点，绿水弯弯如月",photo:"高处俯拍月亮湾全形，黄昏光线绝美"},
+    {name:"喀纳斯图瓦人家",type:"住宿",time:"17:30",lat:48.733,lng:87.000,desc:"住景区内避免每日排队换乘",photo:""},
+  ]},
+  {id:6,title:"Day 6",route:"喀纳斯→五彩滩→布尔津",color:"#f97316",
+   coords:[[48.733,87.000],[48.789,86.638],[48.019,87.326],[47.703,86.875]],
+   pois:[
+    {name:"白哈巴村",type:"景点",time:"10:30–12:00",lat:48.789,lng:86.638,desc:"中国最西北角，背靠阿尔泰山，与哈萨克斯坦一河之隔",photo:"顺着主街拍木屋+雪山，秋色金黄层叠"},
+    {name:"五彩滩",type:"景点",time:"15:00–17:00",lat:48.019,lng:87.326,desc:"世界罕见彩色丹霞+绿洲共存景观，南北岸反差极强",photo:"黄昏16:30后最佳，偏振镜增饱和"},
+    {name:"布尔津河边客栈",type:"住宿",time:"19:30",lat:47.703,lng:86.875,desc:"明日路程长，早休整",photo:""},
+  ]},
+  {id:7,title:"Day 7",route:"布尔津→乌尔禾→克拉玛依",color:"#0ea5e9",
+   coords:[[47.703,86.875],[47.000,86.500],[46.089,85.692],[45.600,84.873]],
+   pois:[
+    {name:"乌尔禾魔鬼城",type:"景点",time:"11:00–13:00",lat:46.089,lng:85.692,desc:"准噶尔盆地雅丹奇观，西北风将岩石雕成千姿百态",photo:"进西门向右走到最高台地俯瞰全景"},
+    {name:"克拉玛依磕头机",type:"景点",time:"16:30–18:00",lat:45.589,lng:84.890,desc:"百年工业文明，密布的抽油机是别处难见的奇景",photo:"日落剪影，广角涵盖更多磕头机"},
+    {name:"克拉玛依加油站",type:"加油",time:"18:00",lat:45.598,lng:84.875,desc:"明日前往赛里木湖加满油",photo:""},
+    {name:"克拉玛依市区酒店",type:"住宿",time:"18:30",lat:45.600,lng:84.873,desc:"城市条件好，好好休息",photo:""},
+  ]},
+  {id:8,title:"Day 8",route:"克拉玛依→赛里木湖",color:"#ec4899",
+   coords:[[45.600,84.873],[44.423,84.903],[44.599,82.889],[44.600,81.197]],
+   pois:[
+    {name:"赛里木湖",type:"景点",time:"14:45–18:30",lat:44.600,lng:81.197,desc:"大西洋最后一滴眼泪，海拔2073m高山湖泊",photo:"偏振镜必备，压暗天空使湖水蓝色更饱和"},
+    {name:"精河加油站",type:"加油",time:"12:00",lat:44.599,lng:82.889,desc:"赛里木湖附近无加油站，此处加满",photo:""},
+    {name:"赛里木湖湖边营地",type:"住宿",time:"19:00",lat:44.610,lng:81.220,desc:"清晨在帐篷外即可看日出+雪山",photo:""},
+  ]},
+  {id:9,title:"Day 9",route:"赛里木湖→伊宁",color:"#14b8a6",
+   coords:[[44.600,81.197],[44.301,81.753],[44.000,81.450],[43.909,81.324]],
+   pois:[
+    {name:"果子沟大桥",type:"景点",time:"09:30–10:30",lat:44.301,lng:81.753,desc:"亚洲最大双塔斜拉桥，海拔落差600m峡谷",photo:"大桥北端俯瞰峡谷，或桥面拍斜拉索几何感"},
+    {name:"六星街历史街区",type:"景点",time:"14:30–17:00",lat:43.921,lng:81.330,desc:"俄式+维族融合建筑，伊犁最有味道的街区",photo:"蓝色木门+白色廊柱经典构图，下午侧光打质感"},
+    {name:"伊宁市区酒店",type:"住宿",time:"19:00",lat:43.909,lng:81.324,desc:"明日前往昭苏",photo:""},
+  ]},
+  {id:10,title:"Day 10",route:"伊宁→昭苏",color:"#84cc16",
+   coords:[[43.909,81.324],[43.750,80.850],[43.600,80.900],[43.156,81.131]],
+   pois:[
+    {name:"S237薰衣草花田",type:"景点",time:"09:15–10:30",lat:43.750,lng:80.850,desc:"6-7月薰衣草盛开，紫色花田绵延数里",photo:"清晨逆光拍，带人像最有感染力"},
+    {name:"白石墩观景台",type:"景点",time:"10:30–11:30",lat:43.600,lng:80.900,desc:"天山深处峡谷观景台，河谷与雪山同框",photo:"广角仰拍天山，前景放峡谷灌木增加层次"},
+    {name:"昭苏天马文化园",type:"景点",time:"13:30–15:30",lat:43.160,lng:81.130,desc:"伊犁马故乡，近距离接触哈萨克马",photo:"马群奔跑用连拍，1/1000s以上冻结动作"},
+    {name:"昭苏牧家乐",type:"住宿",time:"18:30",lat:43.156,lng:81.131,desc:"体验哈萨克族帐篷住宿",photo:""},
+  ]},
+  {id:11,title:"Day 11",route:"昭苏→夏塔→特克斯",color:"#a78bfa",
+   coords:[[43.156,81.131],[42.950,81.080],[42.910,81.060],[43.218,81.838]],
+   pois:[
+    {name:"夏塔古道",type:"景点",time:"08:30–11:30",lat:42.921,lng:81.069,desc:"汉唐丝绸之路古道，高山草甸+冰川+雪峰三重景观",photo:"中段草甸花海最美，早上光线适合人像"},
+    {name:"夏塔冰川",type:"景点",time:"11:30–12:30",lat:42.910,lng:81.060,desc:"可徒步接近的天山冰川，蓝绿色冰体近在咫尺",photo:"偏振镜去除冰面反光，拍冰裂缝纹理细节"},
+    {name:"特克斯八卦城",type:"景点",time:"16:30–18:00",lat:43.218,lng:81.838,desc:"全球唯一按八卦图规划的城市，吉尼斯纪录",photo:"最佳拍摄需无人机或高楼俯瞰"},
+    {name:"特克斯县城酒店",type:"住宿",time:"18:30",lat:43.218,lng:81.839,desc:"明日喀拉峻需早起",photo:""},
+  ]},
+  {id:12,title:"Day 12",route:"特克斯→喀拉峻→那拉提",color:"#fb923c",
+   coords:[[43.218,81.838],[43.310,82.450],[43.250,83.100],[43.290,83.978]],
+   pois:[
+    {name:"喀拉峻草原",type:"景点",time:"09:30–12:00",lat:43.310,lng:82.450,desc:"UNESCO世界自然遗产，万亩草原+云杉林+雪山",photo:"骑马时拍骑马剪影，背景选最高雪山"},
+    {name:"阔克苏大峡谷",type:"景点",time:"13:30–15:00",lat:43.250,lng:83.100,desc:"草原深处突现险峻峡谷，落差达300m",photo:"峡谷边缘俯拍，广角展现纵深感"},
+    {name:"那拉提草原",type:"景点",time:"17:30–18:30",lat:43.295,lng:83.990,desc:"中国最美草原之一，空中草原地形独特",photo:"傍晚金光，宽幅横构图展现辽阔"},
+    {name:"那拉提景区酒店",type:"住宿",time:"19:00",lat:43.290,lng:83.978,desc:"明日独库公路，需早起",photo:""},
+  ]},
+  {id:13,title:"Day 13",route:"那拉提→巴音布鲁克",color:"#34d399",
+   coords:[[43.290,83.978],[43.200,84.200],[43.100,84.400],[43.000,83.900],[42.990,84.050],[42.983,84.061]],
+   pois:[
+    {name:"唐布拉百里画廊",type:"景点",time:"10:00–12:00",lat:43.100,lng:84.400,desc:"百里云杉峡谷，夏季花海秋季红叶",photo:"弯道处拍公路+云杉+雪山三要素同框"},
+    {name:"铁力买提达坂",type:"景点",time:"14:00–15:00",lat:43.000,lng:83.900,desc:"海拔3390m，独库公路最高垭口，云海翻涌",photo:"垭口风大注意保暖；广角展现高处辽阔感"},
+    {name:"巴音布鲁克天鹅湖",type:"景点",time:"15:30–17:00",lat:42.990,lng:84.050,desc:"全球第二大天鹅繁殖地，高原湿地开满野花",photo:"400mm以上长焦拍天鹅，清晨拍倒影"},
+    {name:"九曲十八弯观景台",type:"景点",time:"17:30–19:30",lat:42.983,lng:84.061,desc:"新疆最代表性的日落圣地，开都河S弯叠层",photo:"200mm以上长焦，等夕阳最后3分钟"},
+    {name:"巴音布鲁克镇牧家乐",type:"住宿",time:"20:00",lat:42.985,lng:84.056,desc:"高原夜晚温度低，多带外套",photo:""},
+  ]},
+  {id:14,title:"Day 14",route:"巴音布鲁克→乌鲁木齐→吐鲁番",color:"#60a5fa",
+   coords:[[42.983,84.061],[43.500,84.500],[44.330,84.887],[43.827,87.617],[42.947,89.187],[42.801,89.533]],
+   pois:[
+    {name:"独库公路北段悬崖路",type:"景点",time:"07:15–10:00",lat:43.500,lng:84.500,desc:"独库公路最险峻壮观段，凿山劈壁的工程奇迹",photo:"在安全停车台拍悬崖公路，切勿在弯道停车"},
+    {name:"独山子加油站",type:"加油",time:"10:30",lat:44.330,lng:84.887,desc:"从山区下来务必加满油",photo:""},
+    {name:"火焰山",type:"景点",time:"16:30–18:00",lat:42.801,lng:89.533,desc:"西游记取景圣地，赤红山脉极具视觉冲击",photo:"傍晚斜阳染成深橙红，偏振镜加强饱和"},
+    {name:"葡萄沟",type:"景点",time:"18:00–19:30",lat:42.958,lng:89.227,desc:"千年吐鲁番无核白葡萄产地，藤架遮天蔽日",photo:"仰拍葡萄藤架光影透射，人像逆光"},
+    {name:"乌鲁木齐酒店",type:"住宿",time:"21:00",lat:43.827,lng:87.617,desc:"14天环线收官，好好休息",photo:""},
+  ]},
+];
+
+const TYPE_COLOR = {景点:"#10b981",住宿:"#6366f1",加油:"#f59e0b",餐食:"#ef4444",其他:"#94a3b8"};
+const TYPE_ICON  = {景点:"▲",住宿:"■",加油:"◆",餐食:"●",其他:"●"};
+
+// Map init
+const map = L.map('map', {
+  center: [45.5, 84.5], zoom: 6,
+  zoomControl: false,
+  attributionControl: false,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19, subdomains: 'abcd'
+}).addTo(map);
+
+L.control.attribution({ position: 'bottomright' })
+  .addAttribution('© <a href="https://carto.com">CARTO</a>')
+  .addTo(map);
+
+// State
+let activeDay = 0; // 0 = all
+const dayLayers = {};
+
+function makeMarker(poi, day) {
+  const color = TYPE_COLOR[poi.type] || '#94a3b8';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:28px;height:28px;border-radius:50%;
+      background:${color};border:2.5px solid rgba(255,255,255,0.9);
+      display:flex;align-items:center;justify-content:center;
+      font-size:10px;color:#fff;font-weight:800;
+      box-shadow:0 2px 8px rgba(0,0,0,0.5);
+      cursor:pointer;
+    ">${TYPE_ICON[poi.type]||'●'}</div>`,
+    iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16],
+  });
+
+  const photoHtml = poi.photo
+    ? `<div class="popup-photo">📷 ${poi.photo}</div>` : '';
+
+  const popup = L.popup({ maxWidth: 280, className: '' }).setContent(`
+    <div class="popup-inner">
+      <div class="popup-day-badge" style="background:${day.color}">${day.title} · ${day.route}</div>
+      <div class="popup-type">${poi.type}</div>
+      <div class="popup-name">${poi.name}</div>
+      <div class="popup-time">🕐 ${poi.time}</div>
+      <div class="popup-desc">${poi.desc}</div>
+      ${photoHtml}
+    </div>
+  `);
+
+  return L.marker([poi.lat, poi.lng], { icon }).bindPopup(popup);
+}
+
+function buildDayLayer(day) {
+  const group = L.layerGroup();
+  // Route polyline
+  L.polyline(day.coords, {
+    color: day.color, weight: 4, opacity: 0.85,
+    lineJoin: 'round', lineCap: 'round',
+  }).addTo(group);
+  // POI markers
+  day.pois.forEach(poi => makeMarker(poi, day).addTo(group));
+  return group;
+}
+
+// Build all layers
+DAYS.forEach(day => {
+  dayLayers[day.id] = buildDayLayer(day);
+  dayLayers[day.id].addTo(map);
+});
+
+// Day filter pills
+const scroll = document.getElementById('day-scroll');
+
+function setPill(id) {
+  activeDay = id;
+  document.querySelectorAll('.day-pill').forEach(p => {
+    const active = parseInt(p.dataset.id) === id;
+    p.classList.toggle('active', active);
+    if (active) p.style.borderColor = p.dataset.color || 'rgba(255,255,255,0.8)';
+    else p.style.borderColor = 'transparent';
+  });
+
+  DAYS.forEach(day => {
+    const layer = dayLayers[day.id];
+    if (id === 0 || day.id === id) {
+      if (!map.hasLayer(layer)) layer.addTo(map);
+    } else {
+      if (map.hasLayer(layer)) map.removeLayer(layer);
+    }
+  });
+
+  map.closePopup();
+
+  if (id === 0) {
+    map.setView([45.5, 84.5], 6);
+    document.getElementById('subtitle-text').textContent = '乌鲁木齐出发 · 全程约4390公里 · 54个地点';
+  } else {
+    const day = DAYS.find(d => d.id === id);
+    const bounds = L.latLngBounds(day.coords);
+    map.fitBounds(bounds, { padding: [60, 60] });
+    document.getElementById('subtitle-text').textContent = `${day.title} · ${day.route}`;
+  }
+}
+
+// Build pills
+const allPill = document.createElement('div');
+allPill.className = 'day-pill active';
+allPill.dataset.id = 0;
+allPill.textContent = '全程';
+allPill.style.borderColor = 'rgba(255,255,255,0.8)';
+allPill.onclick = () => setPill(0);
+scroll.appendChild(allPill);
+
+DAYS.forEach(day => {
+  const pill = document.createElement('div');
+  pill.className = 'day-pill';
+  pill.dataset.id = day.id;
+  pill.dataset.color = day.color;
+  pill.style.color = day.color;
+  pill.textContent = `${day.title} ${day.route}`;
+  pill.onclick = () => setPill(day.id);
+  scroll.appendChild(pill);
+});
+</script>
+</body>
+</html>
